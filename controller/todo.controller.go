@@ -8,9 +8,8 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/sumit-verma-trackier/todo/helper"
 	TodoModel "github.com/sumit-verma-trackier/todo/model"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -42,120 +41,32 @@ func init() {
 
 }
 
-// Helper method (can create this into another folder called helper)
+// ------ Controller ------
 
-// Insert One helper
-func insertOneRecord(todo TodoModel.Todo) TodoModel.Todo {
+func AddTodoRecordController(w http.ResponseWriter, r *http.Request) {
 
-	response, err := collection.InsertOne(context.Background(), todo)
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Allow-Content-Allow-Method", "POST")
 
-	if err != nil {
-		log.Fatal(err)
-	}
+	var todo TodoModel.Todo
 
-	fmt.Println("Todo data inserted with id: ", response.InsertedID)
-	return todo
-
-}
-
-// update one helper
-func updateOneRecord(mongoId string, todo TodoModel.Todo) (bool, error) {
-
-	// change string id into mongo id
-	id, _ := primitive.ObjectIDFromHex(mongoId)
-
-	filter := bson.M{"_id": id}
-
-	todo.ID = id
-
-	updateData, _ := bson.Marshal(todo) // converting struct into raw BSON
-
-	var updateDoc bson.M
-	err := bson.Unmarshal(updateData, &updateDoc) // converting raw BSON Byte into BSON.M(like map)
-	if err != nil {
-		log.Println("Failed to unmarshal to bson.M:", err)
-		return false, err
-	}
-
-	update := bson.M{"$set": updateDoc}
-
-	res, err := collection.UpdateOne(context.Background(), filter, update)
-	if err != nil {
-		log.Println("Failed to update record:", err)
-		return false, nil
-	}
-
-	return res.ModifiedCount > 0, nil
-
-}
-
-// delete one helper
-func deleteOneRecord(mongoId string) {
-
-	id, _ := primitive.ObjectIDFromHex(mongoId)
-
-	filter := bson.M{"_id": id}
-
-	res, _ := collection.DeleteOne(context.Background(), filter)
-
-	fmt.Println("Record deleted successfully", res.DeletedCount)
-
-}
-
-// getAll helper
-func getAllRecord() []primitive.M {
-
-	res, err := collection.Find(context.Background(), bson.M{})
+	err := json.NewDecoder(r.Body).Decode(&todo)
 
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	var todoList []primitive.M
+	helper.InsertOneRecord(todo, collection)
 
-	for res.Next(context.Background()) {
-		var todo bson.M
-
-		err := res.Decode(&todo)
-
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		todoList = append(todoList, todo)
-
-	}
-
-	defer res.Close(context.Background())
-
-	return todoList
+	json.NewEncoder(w).Encode(map[string]any{"status": true, "response": todo})
 
 }
-
-// func Get one helper
-func getOneRecord(mongoId string) TodoModel.Todo {
-
-	id, _ := primitive.ObjectIDFromHex(mongoId)
-
-	filter := bson.M{"_id": id}
-
-	var todoItem TodoModel.Todo
-
-	res := collection.FindOne(context.Background(), filter)
-
-	res.Decode(&todoItem)
-
-	return todoItem
-
-}
-
-// Controller (only this should be here in file)
 
 func GetAllTodoController(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 
-	response := getAllRecord()
+	response := helper.GetAllRecord(collection)
 
 	json.NewEncoder(w).Encode(response)
 
@@ -171,28 +82,9 @@ func GetTodoByIdController(w http.ResponseWriter, r *http.Request) {
 
 	mongoId := mux.Vars(r)
 
-	res := getOneRecord(mongoId["id"])
+	res := helper.GetOneRecord(mongoId["id"], collection)
 
 	json.NewEncoder(w).Encode(res)
-}
-
-func AddTodoRecordController(w http.ResponseWriter, r *http.Request) {
-
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Allow-Content-Allow-Method", "POST")
-
-	var todo TodoModel.Todo
-
-	err := json.NewDecoder(r.Body).Decode(&todo)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	insertOneRecord(todo)
-
-	json.NewEncoder(w).Encode(map[string]any{"status": true, "response": todo})
-
 }
 
 func UpdateTodoRecordController(w http.ResponseWriter, r *http.Request) {
@@ -208,7 +100,7 @@ func UpdateTodoRecordController(w http.ResponseWriter, r *http.Request) {
 
 	json.NewDecoder(r.Body).Decode(&payload)
 
-	updateOneRecord(mongoId["id"], payload)
+	helper.UpdateOneRecord(mongoId["id"], payload, collection)
 
 	json.NewEncoder(w).Encode(map[string]any{"status": true, "response": "Todo Updated!"})
 
@@ -225,7 +117,7 @@ func DeleteTodoRecordController(w http.ResponseWriter, r *http.Request) {
 
 	mongoId := mux.Vars(r)
 
-	deleteOneRecord(mongoId["id"])
+	helper.DeleteOneRecord(mongoId["id"], collection)
 
 	json.NewEncoder(w).Encode(map[string]any{"status": true, "response": "Todo deleted!"})
 }
