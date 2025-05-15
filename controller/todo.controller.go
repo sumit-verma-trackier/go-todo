@@ -68,10 +68,11 @@ func updateOneRecord(mongoId string, todo TodoModel.Todo) (bool, error) {
 
 	todo.ID = id
 
-	updateData, _ := bson.Marshal(todo)
+	updateData, _ := bson.Marshal(todo) // converting struct into raw BSON
 
 	var updateDoc bson.M
-	if err := bson.Unmarshal(updateData, &updateDoc); err != nil {
+	err := bson.Unmarshal(updateData, &updateDoc) // converting raw BSON Byte into BSON.M(like map)
+	if err != nil {
 		log.Println("Failed to unmarshal to bson.M:", err)
 		return false, err
 	}
@@ -147,11 +148,6 @@ func getOneRecord(mongoId string) TodoModel.Todo {
 	return todoItem
 
 }
-
-
-
-
-
 
 // Controller (only this should be here in file)
 
