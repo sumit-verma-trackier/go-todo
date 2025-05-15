@@ -52,13 +52,20 @@ func AddTodoRecordController(w http.ResponseWriter, r *http.Request) {
 
 	err := json.NewDecoder(r.Body).Decode(&todo)
 
+	isExist := helper.GetTodoByName(todo.Task, collection)
+
+	if len(isExist.Task) != 0 {
+		json.NewEncoder(w).Encode(map[string]any{"status": false, "response": "Task with name already exist"})
+		return
+	}
+
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	helper.InsertOneRecord(todo, collection)
+	res := helper.InsertOneRecord(todo, collection)
 
-	json.NewEncoder(w).Encode(map[string]any{"status": true, "response": todo})
+	json.NewEncoder(w).Encode(map[string]any{"status": true, "response": res})
 
 }
 

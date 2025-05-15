@@ -14,11 +14,16 @@ import (
 // Insert One helper
 func InsertOneRecord(todo TodoModel.Todo, collection *mongo.Collection) TodoModel.Todo {
 
-	response, err := collection.InsertOne(context.Background(), todo)
+	response, err := collection.InsertOne(context.Background(), bson.M{
+		"task":        todo.Task,
+		"isCompleted": todo.IsCompleted,
+	})
 
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	todo.ID = response.InsertedID.(primitive.ObjectID)
 
 	fmt.Println("Todo data inserted with id: ", response.InsertedID)
 	return todo
@@ -113,5 +118,21 @@ func GetOneRecord(mongoId string, collection *mongo.Collection) TodoModel.Todo {
 	res.Decode(&todoItem)
 
 	return todoItem
+
+}
+
+func GetTodoByName(name string, collection *mongo.Collection)TodoModel.Todo{
+
+	filter := bson.M{"task":name}
+
+	res:=collection.FindOne(context.Background(), filter)
+
+	var todoItem TodoModel.Todo
+	
+	res.Decode(&todoItem)
+
+	return todoItem
+
+
 
 }
